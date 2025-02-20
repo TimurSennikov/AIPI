@@ -3,15 +3,22 @@ import asyncio
 from aiogram import Bot, Dispatcher, html
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
-from aiogram.types import Message
+from aiogram.filters import *
+
+import aiogram.filters
+import aiogram.types
 
 import google.generativeai as genai
 
-dp = Dispatcher()
+import PIL.Image
 
-genai.configure(api_key="AIzaSyDkDI0-Z5SUl8lvRJo077rDoENYYbMGrmU")
-model = genai.GenerativeModel('gemini-1.5-flash')
+import os
+
+dp = Dispatcher()
+bot = Bot(token="TG_BOT_TOKEN")
+
+genai.configure(api_key="GEMINI_API_TOKEN")
+model = genai.GenerativeModel('gemini-1.5-pro')
 
 def get_config():
     try:
@@ -23,14 +30,26 @@ def get_config():
 CONFIG = get_config()
 
 @dp.message()
-async def message(message: Message):
-    print(message.text)
-    if message.text.startswith("ИИ"):
+async def message(message: aiogram.types.Message):
+    if message.content_type == aiogram.types.ContentType.TEXT:
         await message.reply(model.generate_content(CONFIG + ", вопрос: " + message.text).text, parse_mode="markdown")
+    elif message.content_type == aiogram.types.ContentType.PHOTO:
+        t = []
+
+        if(message.caption != None):
+            t.append(message.caption)
+
+        if not os.path.exists("photos/"):
+            os.mkdir("photos")
+
+        for photo in message.photo:
+            await bot.download(photo, "photos/" + photo.file_id + ".png")
+            img = PIL.Image.open("photos/" + photo.file_id + ".png")
+            t.append(img)
+
+        await message.reply(model.generate_content(t).text)
 
 async def main():
-    bot = Bot(token="7942728169:AAHtm_rDUB1akD01VF0PW5z7jIAyu2G8ur8")
-
     await dp.start_polling(bot)
 
 
